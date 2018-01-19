@@ -57,12 +57,3 @@ contract remitFunds is Remittance {
         }
 
 }
-            
-            if (bobHashed == keccak256(pass1)
-            && carolHashed == keccak256(pass2)) {
-                msg.sender.transfer(this.balance);
-                return true;
-            }
-        }
-
-}
