@@ -57,5 +57,3 @@ contract remitFunds is Remittance {
         }
 
 }
-
-}
