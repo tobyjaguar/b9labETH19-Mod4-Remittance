@@ -48,6 +48,15 @@ contract remitFunds is Remittance {
         returns (bool success) {
             require(this.balance > 0);
             //check-sanitize user data
+            (bobHashed, carolHashed) = getVars();
+            if (bobHashed == keccak256(pass1)
+            && carolHashed == keccak256(pass2)) {
+                msg.sender.transfer(this.balance);
+                return true;
+            }
+        }
+
+}
             
             if (bobHashed == keccak256(pass1)
             && carolHashed == keccak256(pass2)) {
