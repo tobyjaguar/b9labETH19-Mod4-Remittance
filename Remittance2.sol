@@ -32,7 +32,6 @@ contract Remittance {
     }
 
     function checkPass()
-    public
     {
         require(bobHashedPass == testPass1);
 	require(carolHashedPass == testPass2);
@@ -40,7 +39,6 @@ contract Remittance {
     }
 
     function checkKey(bytes32 pass1, bytes32 pass2)
-    public
     {
 	testPass1 = keccak256(pass1);
 	testPass2 = keccak256(pass2);
