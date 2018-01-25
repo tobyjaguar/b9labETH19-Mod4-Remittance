@@ -7,7 +7,6 @@ contract Remittance {
     bytes32 public bobHashedPass;
     bytes32 public carolHashedPass;
 
-    address public remitAddy;
     bool public unlocked;
     bytes32 public testPass1;
     bytes32 public testPass2;
@@ -44,13 +43,17 @@ contract Remittance {
     returns(bool success)
     {
         require(this.balance > 0);
-        require(remitAddy != 0);
-        checkKey(pass1, pass2);
-        remitAddy.transfer(this.balance);
+        require(msg.sender != 0);
+        testPass1 = keccak256(pass1);
+        testPass2 = keccak256(pass2);
+        checkKey();
+        require(unlocked);
+	unlocked = false;
+        msg.sender.transfer(this.balance);
         return true;
     }
 
-    function checkPass()
+    function checkKey()
     internal
     returns (bool success)
     {
@@ -59,16 +62,4 @@ contract Remittance {
         unlocked = true;
         return true;
     }
-
-    function checkKey(bytes32 pass1, bytes32 pass2)
-    internal
-    returns (bool success)
-    {
-        testPass1 = keccak256(pass1);
-        testPass2 = keccak256(pass2);
-        remitAddy = msg.sender;
-        checkPass();
-        return true;
-    }
-
 }
