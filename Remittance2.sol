@@ -7,6 +7,8 @@ contract Remittance {
     bytes32 public bobHashedPass;
     bytes32 public carolHashedPass;
 
+    bool private isSet;
+
     function Remittance()
     public
     {
@@ -31,6 +33,7 @@ contract Remittance {
         require(hashedPass2 != 0);
         bobHashedPass = hashedPass1;
         carolHashedPass = hashedPass2;
+        isSet = true;
         return true;
     }
 
@@ -40,8 +43,10 @@ contract Remittance {
     {
         require(this.balance > 0);
         require(msg.sender != 0);
+        require(isSet);
         require(bobHashedPass == keccak256(pass1));
         require(carolHashedPass == keccak256(pass2));
+        isSet = false;
         msg.sender.transfer(this.balance);
         return true;
     }
