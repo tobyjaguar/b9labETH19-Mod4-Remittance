@@ -28,6 +28,7 @@ contract Remittance {
     payable
     returns (bool success)
     {
+	require(!isSet);
         require(owner == msg.sender);
         require(hashedPass1 != 0);
         require(hashedPass2 != 0);
