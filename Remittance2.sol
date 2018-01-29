@@ -45,9 +45,9 @@ contract Remittance {
     public
     returns(bool success)
     {
-        require(isSet);
         require(this.balance > 0);
-        require(msg.sender != 0);
+        require(msg.sender == carol);
+        require(isSet);
         require(bobHashedPass == keccak256(pass1));
         require(carolHashedPass == keccak256(pass2));
         isSet = false;
