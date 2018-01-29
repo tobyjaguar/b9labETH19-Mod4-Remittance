@@ -43,7 +43,7 @@ contract ('Remittance', function(accounts) {
       contractBalanceNow = _balance;
     });
 
-    return contractInstance.setPass(hashedPass1, hashedPass2,{from: owner, value: amount})
+    return contractInstance.setPass(hashedPass1, hashedPass2, remitAddress, {from: owner, value: amount})
       .then(function(_result) {
         return contractInstance.getBalance.call()
         .then(function(_balance) {
@@ -75,7 +75,7 @@ contract ('Remittance', function(accounts) {
     //remitBalanceBefore = web3.eth.getBalance(remitAddress);
     remitBalanceBefore = remitAddress.balance;
 
-    return contractInstance.setPass(hashedPass1, hashedPass2, {from: owner, value: amount})
+    return contractInstance.setPass(hashedPass1, hashedPass2, remitAddress, {from: owner, value: amount})
       .then(function(_result) {
       });
 
