@@ -36,6 +36,7 @@ contract Remittance {
         require(carolAddress != 0);
         require(hashedPass1 != 0);
         require(hashedPass2 != 0);
+        require(duration < block.number);
         bobHashedPass = hashedPass1;
         carolHashedPass = hashedPass2;
         carol = carolAddress;
@@ -51,7 +52,7 @@ contract Remittance {
         require(this.balance > 0);
         require(msg.sender == carol);
         require(isSet);
-        require(block.number < expirationBlock);
+        require(block.number <= expirationBlock);
         require(bobHashedPass == keccak256(pass1));
         require(carolHashedPass == keccak256(pass2));
         isSet = false;
@@ -65,7 +66,7 @@ contract Remittance {
     {
         require(msg.sender == owner);
         require(isSet);
-        require(block.number > expirationBlock);
+        require(block.number >= expirationBlock);
         isSet = false;
         owner.transfer(this.balance);
         return true;
