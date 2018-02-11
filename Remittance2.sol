@@ -5,8 +5,7 @@ contract Remittance {
 
     address public owner;
     address public carol;
-    bytes32 public bobHashedPass;
-    bytes32 public carolHashedPass;
+    bytes32 public hashedPass;
     uint256 public expirationBlock;
 
     bool public isSet;
@@ -37,8 +36,7 @@ contract Remittance {
         require(hashedPass1 != 0);
         require(hashedPass2 != 0);
         require(block.number < block.number + duration);
-        bobHashedPass = hashedPass1;
-        carolHashedPass = hashedPass2;
+        hashedPass = keccak256(hashedPass1, hashedPass2);
         carol = carolAddress;
         expirationBlock = duration + block.number;
         isSet = true;
@@ -53,8 +51,7 @@ contract Remittance {
         require(msg.sender == carol);
         require(isSet);
         require(block.number < expirationBlock);
-        require(bobHashedPass == keccak256(pass1));
-        require(carolHashedPass == keccak256(pass2));
+        require(hashedPass == keccak256(keccak256(pass1), keccak256(pass2)));
         isSet = false;
         carol.transfer(this.balance);
         return true;
