@@ -23,7 +23,7 @@ contract Remittance is Stoppable {
     function Remittance()
     public
     {
-        owner = msg.sender;
+
     }
 
     function getBalance()
@@ -68,10 +68,13 @@ contract Remittance is Stoppable {
         require(isSet);
         require(block.number < expirationBlock);
         require(hashedPass == keccak256(keccak256(pass1), keccak256(pass2)));
+        uint256 amountToSend;
+        amountToSend = balance;
+        balance = 0;
         isSet = false;
-        carol.transfer(balance);
+        carol.transfer(amountToSend);
 
-        LogWithdraw(msg.sender, balance);
+        LogWithdraw(msg.sender, amountToSend);
         return true;
     }
 
