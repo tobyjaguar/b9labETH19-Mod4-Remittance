@@ -35,7 +35,7 @@ contract Remittance is Stoppable {
         return balance;
     }
 
-    function setPass(bytes32 hashedPass1, bytes32 hashedPass2, address carolAddress, uint256 duration)
+    function setPass(bytes32 _hashedPass, address carolAddress, uint256 duration)
     public
     payable
     onlyOwner
@@ -45,10 +45,9 @@ contract Remittance is Stoppable {
         require(msg.value > 0);
         require(!isSet);
         require(carolAddress != 0);
-        require(hashedPass1 != 0);
-        require(hashedPass2 != 0);
+        require(_hashedPass != 0);
         require(block.number < block.number + duration);
-        hashedPass = keccak256(hashedPass1, hashedPass2);
+        hashedPass = _hashedPass;
         carol = carolAddress;
         expirationBlock = duration + block.number;
         isSet = true;
