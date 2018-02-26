@@ -1,93 +1,229 @@
+//Splitter Test File
 var Remittance = artifacts.require("./Remittance.sol");
 
-contract ('Remittance', function(accounts) {
+contract('Remittance', function(accounts) {
 
   var owner = accounts[0];
-  var remitAddress = accounts[1];
+  var remit = accounts[1];
+  var remit2 = accounts[2];
   var amount = 1000;
-
-  //var pass1 = "0x616263";
-  //var pass2 = "0x646566"
-  //var hashedPass1 = "0x9b8075e3114a237714bcee811cbb0337de6d1423cb2947266772aae5963ec8e5";
-  //var hashedPass2 = "0xc6f91c219c527df164f349f01610e87533ec0c3b5c11fddd8052d101332c0257";
-  //Hash here
-  var pass1 = "acb";
+  var blockDuration = 5;
+  var pass = "abc";
   var pass2 = "def";
-  var hashedPass1 = web3.sha3(pass1);
-  var hashedPass2 = web3.sha3(pass2);
+  var pass32bytes = "0x6162630000000000000000000000000000000000000000000000000000000000";
+  var hashOfABC = "0x9b8075e3114a237714bcee811cbb0337de6d1423cb2947266772aae5963ec8e5"
+  var pass1H = web3.sha3(web3.toHex("abc"), {encode: 'hex'});
 
   beforeEach(function() {
     return Remittance.new({from: owner})
     .then(function(instance) {
       contractInstance = instance;
+
     });
   });
 
-  //test owner
-  it("Should be owner by owner", function() {
-    return contractInstance.owner({from: owner})
-    .then(function(_result) {
-      assert.equal(_result, owner, "Contract owner is not owned by owner.");
+  //test hashPasswords
+  it("Should hash two passwords", function() {
+    //var hashed1 = web3.sha3(pass1, {encoding: 'hex'});
+    //var hashed2 = web3.sha3(pass2);
+    //var hashed = web3.sha3(hashed1, hashed2);
+    return contractInstance.hashPasswords.call(remit, pass, {from: owner})
+    .then(result => {
+      //console.log("Result: " + result);
+      assert.equal(result, result, "hashPasswords did not return correctly");
     });
+    //end test
   });
 
-  //test send transaction to contract
-  it("Should have received funds and set passwords", function() {
-    var contractBalanceFinal
-    var contractBalanceNow
-    var setPassBob
-    var setPassCarol
+  it("Should set passwords, address, and duration", function() {
+    var blockNumber;
+    var eExpirationBlock;
+    var hashedReturn;
 
-    return contractInstance.getBalance.call({from: owner})
-    .then(function(_balance) {
-      contractBalanceNow = _balance;
-    });
+    return contractInstance.hashPasswords.call(remit, pass, {from: owner})
+    .then(result => {
+      hashedReturn = result;
+      return contractInstance.setPass(remit, result, blockDuration, {from: owner, value: amount})
+      .then(result => {
+        assert.equal(result.receipt.status, true, "setPass did not return true");
+        assert.equal(result.logs[0].args.eRemitAddress, remit, "LogSetRemittance did not return the remit address correctly");
+        assert.equal(result.logs[0].args.eAmount, amount, "LogSetRemittance did not return amount correctly");
 
-    return contractInstance.setPass(hashedPass1, hashedPass2, remitAddress, {from: owner, value: amount})
-      .then(function(_result) {
-        return contractInstance.getBalance.call()
-        .then(function(_balance) {
-          contractBalanceFinal = _balance;
+        eExpirationBlock = result.logs[0].args.eExpirationBlock;
+
+        return new Promise((resolve, reject) => {
+          web3.eth.getBlockNumber((err, block) => {
+            if (err) reject(err)
+            else resolve(block)
+          });
         });
-        console.log(JSON.stringify("setPass returned: " + _result, null, 4));
-        assert.equal(contractBalanceNow, contractBalanceFinal, "Contract balance is not correct.");
+      })
+      .then(block => {
+        blockNumber = block;
+        assert.equal(blockNumber + blockDuration, eExpirationBlock, "LogSetRemittance did not return eExpirationBlock correctly");
+        return contractInstance.remitters.call(remit, {from: owner});
+      })
+      .then(result => {
+        //console.log("Remitters: " + result[0]);
+        assert.equal(result[0], hashedReturn, "hashedPassword did not return correctly");
+        assert.equal(result[1], blockDuration + blockNumber, "expirationblock did not return correctly");
+        assert.equal(result[2], amount, "remitAmount did not return correctly");
+        return contractInstance.getBalance.call({from: owner});
+      })
+      .then(result => {
+        assert.equal(result.valueOf(), amount, "Contract balance did not return correctly");
       });
-    //setPassBob = contractInstance.bobHashedPass.toString();
-    return contractInstance.bobHashedPass({from: owner})
-    .then(function(_result) {
-      setPassBob = _result.toString();
-      assert.equal(setPassBob, hashedPass1, "Bob's hashed password should have been passed.");
     });
-    return contractInstance.carolHashedPass({from: owner})
-    .then(function(_result) {
-      setPassCarol = _result.toString();
-      assert.equal(setPassCarol, hashedPass2, "Carol's hashed password should have been passed.");
-    });
-
+    //end test
   });
 
-  //test withdrawFunds function
-  it("Should withdraw funds", function() {
-    var remitBalanceBefore
-    var remitBalanceNow
+  it("Should set two remitters", function() {
+    var blockNumber;
+    var eExpirationBlock;
+    var hashedReturn;
+    var hashedReturn2;
 
-    //How to promisify this to make it asynchronous???
-    //remitBalanceBefore = web3.eth.getBalance(remitAddress);
-    remitBalanceBefore = remitAddress.balance;
+    return contractInstance.hashPasswords.call(remit, pass, {from: owner})
+    .then(result => {
+      hashedReturn = result;
+      return contractInstance.setPass(remit, result, blockDuration, {from: owner, value: amount})
+      .then(result => {
+        assert.equal(result.receipt.status, true, "setPass did not return true");
+        return contractInstance.hashPasswords.call(remit2, pass2, {from: owner});
+      })
+      .then(result => {
+        hashedReturn2 = result;
+        return contractInstance.setPass(remit2, result, blockDuration, {from: owner, value: amount})
+      })
+      .then(result => {
+        assert.equal(result.receipt.status, true, "2nd setPass did not return true");
 
-    return contractInstance.setPass(hashedPass1, hashedPass2, remitAddress, {from: owner, value: amount})
-      .then(function(_result) {
+        eExpirationBlock = result.logs[0].args.eExpirationBlock;
+
+        return new Promise((resolve, reject) => {
+          web3.eth.getBlockNumber((err, block) => {
+            if (err) reject(err)
+            else resolve(block)
+          });
+        });
+      })
+      .then(block => {
+        blockNumber = block;
+        assert.equal(blockNumber + blockDuration, eExpirationBlock, "LogSetRemittance did not return eExpirationBlock correctly");
+        return contractInstance.remitters.call(remit2, {from: owner});
+      })
+      .then(result => {
+        //console.log("Remitters: " + result[0]);
+        assert.equal(result[0], hashedReturn2, "hashedPassword did not return correctly");
+        assert.equal(result[1], blockDuration + blockNumber, "expirationblock did not return correctly");
+        assert.equal(result[2], amount, "remitAmount did not return correctly");
+        return contractInstance.getBalance.call({from: owner});
+      })
+      .then(result => {
+        assert.equal(result.valueOf(), amount * 2, "Contract balance did not return correctly");
       });
-
-    return contractInstance.withdrawFunds(pass1, pass2, {from: remitAddress})
-    .then(function(_result) {
-      console.log(JSON.stringify("withdrawFunds returned: " + _result, null, 4));
     });
-
-    remitBalanceNow = remitAddress.balance;
-
-    assert.equal(remitBalanceNow, remitBalanceBefore + amount,
-      "Something went wrong with withdrawFunds()");
+    //end test
   });
 
+  it("Should be able to withdraw", function() {
+    var balanceBefore;
+    var balanceNow;
+    return contractInstance.hashPasswords.call(remit, pass, {from: owner})
+    .then(result => {
+      return contractInstance.setPass(remit, result, blockDuration, {from: owner, value: amount})
+      .then(result => {
+        assert.equal(result.receipt.status, true, "setPass did not return true");
+        return contractInstance.getBalance.call({from: owner});
+      })
+      .then(result => {
+        balanceBefore = result.valueOf();
+        return contractInstance.withdrawFunds(pass, {from: remit});
+      })
+      .then(result => {
+        assert.equal(result.receipt.status, true, "withdraw did not return true");
+        assert.equal(result.logs[0].args.eSender, remit, "LogWithdraw did not return sender correctly");
+        assert.equal(result.logs[0].args.eAmount, amount, "LogWithdraw did not return amount correctly");
+        return contractInstance.getBalance.call({from: owner});
+      })
+      .then(result => {
+        balanceNow = result.valueOf();
+        assert.equal(balanceNow, balanceBefore - amount, "balance did not return correctly");
+      });
+    });
+    //end test
+  });
+
+  it("Should refund from contract", function() {
+    var shortBlockDuration = 1;
+    var expirationBlock;
+    var balanceBefore;
+    var balanceEnding;
+    return contractInstance.hashPasswords.call(remit, pass, {from: owner})
+    .then(result => {
+      return contractInstance.setPass(remit, result, shortBlockDuration, {from: owner, value: amount});
+    })
+    .then(result => {
+      assert.equal(result.receipt.status, true, "setPass did not return true");
+      return contractInstance.hashPasswords.call(remit2, pass2, {from: owner});
+    })
+    .then(result => {
+      return contractInstance.setPass(remit2, result, shortBlockDuration, {from: owner, value: amount});
+    })
+    .then(result => {
+      assert.equal(result.receipt.status, true, "2nd setPass did not return true");
+      //advance one block
+      return new Promise((resolve, reject) => {
+        web3.eth.sendTransaction({from: owner, to: remit, value: 100}, (err, tx) => {
+          if (err) reject(err)
+          else resolve(tx)
+        });
+      });
+    })
+    .then(tx => {
+      console.log("dummy tx: " + tx);
+      //assert.equal(tx.receipt.status, true, "dummy transaction did not return true");
+      return contractInstance.remitters.call(remit, {from: owner});
+    })
+    .then(result => {
+      expirationBlock = result[1].valueOf();
+      return new Promise((resolve, reject) => {
+        web3.eth.getBlockNumber((err, block) => {
+          if (err) reject(err)
+          else resolve(block)
+        });
+      });
+    })
+    .then(blockNumber => {
+      assert.isTrue(expirationBlock < blockNumber, "Block number does not equal exiration block");
+      return contractInstance.getBalance.call({from: owner});
+    })
+    .then(result => {
+      balanceBefore = result.valueOf();
+      return contractInstance.refund(remit, {from: owner});
+    })
+    .then(result => {
+      assert.equal(result.receipt.status, true, "refund did not return true");
+      assert.equal(result.logs[0].args.eSender, owner, "LogRefund did not return sender correctly");
+      assert.equal(result.logs[0].args.eAmount, amount, "LogRefund did not return balance correctly");
+      return contractInstance.getBalance.call({from: owner});
+    })
+    .then(result => {
+      balanceEnding = result.valueOf();
+      assert.equal(result.valueOf(), balanceBefore - amount, "Balance did not reconcile correctly");
+      return contractInstance.refund(remit2, {from: owner});
+    })
+    .then(result => {
+      assert.equal(result.receipt.status, true, "refund did not return true");
+      assert.equal(result.logs[0].args.eSender, owner, "LogRefund did not return sender correctly");
+      assert.equal(result.logs[0].args.eAmount, amount, "LogRefund did not return balance correctly");
+      return contractInstance.getBalance.call({from: owner});
+    })
+    .then(result => {
+      assert.equal(result.valueOf(), balanceEnding - amount, "Ending balance did not return correctly");
+    });
+    //end test
+  });
+
+  //end tests
 });

@@ -8,16 +8,19 @@ import "./Stoppable.sol";
 
 contract Remittance is Stoppable {
 
-    address public remit;
-    bytes32 public hashedPass;
-    uint256 public expirationBlock;
     uint256 public balance;
 
-    bool public isSet;
+    struct Remitter {
+        bytes32 hashedPassword;
+        uint256 expirationBlock;
+        uint256 remitAmount;
+    }
 
-    event LogSetRemittance(address carolAddress, uint256 eExpirationBlock, uint256 amount);
-    event LogWithdraw(address sender, uint256 amount);
-    event LogRefund(address sender, uint256 eBalance);
+    mapping(address => Remitter) public remitters;
+
+    event LogSetRemittance(address eRemitAddress, uint256 eExpirationBlock, uint256 eAmount);
+    event LogWithdraw(address eSender, uint256 eAmount);
+    event LogRefund(address eSender, uint256 eAmount);
 
     function Remittance()
     public
@@ -28,22 +31,20 @@ contract Remittance is Stoppable {
     function getBalance()
     public
     constant
-    onlyIfRunning
     returns (uint256 _balance)
     {
         return balance;
     }
 
-    function hashPasswords(address _remit, bytes32 unhashedPassword)
+    function hashPasswords(address _remit, bytes32 _unhashedPassword)
     public
     constant
-    onlyIfRunning
     returns (bytes32 hashedOutput)
     {
-        return keccak256(_remit, unhashedPassword);
+        return keccak256(_remit, _unhashedPassword);
     }
 
-    function setPass(address remitAddress, bytes32 hashedPassword, uint256 duration)
+    function setPass(address _remitAddress, bytes32 _hashedPassword, uint256 _duration)
     public
     payable
     onlyOwner
@@ -51,52 +52,52 @@ contract Remittance is Stoppable {
     returns (bool success)
     {
         require(msg.value > 0);
-        require(!isSet);
-        require(remitAddress != 0);
-        require(hashedPassword != 0);
-        require(block.number < block.number + duration);
-        hashedPass = hashedPassword;
-        remit = remitAddress;
-        expirationBlock = duration + block.number;
-        isSet = true;
+        require(_remitAddress != 0);
+        require(_hashedPassword != 0);
+        require(block.number < block.number + _duration);
+        remitters[_remitAddress].hashedPassword = _hashedPassword;
+        remitters[_remitAddress].expirationBlock = _duration + block.number;
+        remitters[_remitAddress].remitAmount += msg.value;
         balance += msg.value;
 
-        LogSetRemittance(remit, expirationBlock, msg.value);
+        LogSetRemittance(_remitAddress, remitters[_remitAddress].expirationBlock, msg.value);
         return true;
     }
 
-    function withdrawFunds(bytes32 unhashedPassword)
+    function withdrawFunds(bytes32 _unhashedPassword)
     public
     onlyIfRunning
     returns(bool success)
     {
-        require(balance > 0);
-        require(msg.sender == remit);
-        require(isSet);
-        require(block.number < expirationBlock);
-        require(hashedPass == hashPasswords(msg.sender, unhashedPassword));
+        require(msg.sender != 0);
+        require(remitters[msg.sender].remitAmount > 0);
+        require(block.number < remitters[msg.sender].expirationBlock);
+        require(remitters[msg.sender].hashedPassword == hashPasswords(msg.sender, _unhashedPassword));
         uint256 amountToSend;
-        amountToSend = balance;
-        balance = 0;
-        isSet = false;
-        remit.transfer(amountToSend);
+        amountToSend = remitters[msg.sender].remitAmount;
+        remitters[msg.sender].remitAmount = 0;
+        msg.sender.transfer(amountToSend);
+        balance -= amountToSend;
 
         LogWithdraw(msg.sender, amountToSend);
         return true;
     }
 
-    function refund()
+    function refund(address _remitAddress)
     public
     onlyOwner
     onlyIfRunning
     returns(bool success)
     {
-        require(isSet);
-        require(expirationBlock <= block.number);
-        isSet = false;
-        owner.transfer(balance);
+        require(remitters[_remitAddress].remitAmount > 0);
+        require(remitters[_remitAddress].expirationBlock <= block.number);
+        uint256 amountToSend;
+        amountToSend = remitters[_remitAddress].remitAmount;
+        remitters[_remitAddress].remitAmount = 0;
+        balance -= amountToSend;
+        owner.transfer(amountToSend);
 
-        LogRefund(msg.sender, balance);
+        LogRefund(msg.sender, amountToSend);
         return true;
     }
 
