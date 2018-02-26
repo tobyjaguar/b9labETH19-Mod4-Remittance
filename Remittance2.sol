@@ -8,17 +8,16 @@ import "./Stoppable.sol";
 
 contract Remittance is Stoppable {
 
-    address public owner;
-    address public carol;
+    address public remit;
     bytes32 public hashedPass;
     uint256 public expirationBlock;
     uint256 public balance;
 
     bool public isSet;
 
-    event LogSetRemittance(address carolAddress, uint256 expirationBlock, uint256 amount);
+    event LogSetRemittance(address carolAddress, uint256 eExpirationBlock, uint256 amount);
     event LogWithdraw(address sender, uint256 amount);
-    event LogRefund(address sender, uint256 balance);
+    event LogRefund(address sender, uint256 eBalance);
 
     function Remittance()
     public
@@ -35,15 +34,16 @@ contract Remittance is Stoppable {
         return balance;
     }
 
-    function hashPasswords(bytes32 _pass1, bytes32 _pass2)
+    function hashPasswords(address _remit, bytes32 unhashedPassword)
     public
-    pure
+    constant
+    onlyIfRunning
     returns (bytes32 hashedOutput)
     {
-        return keccak256(_pass1, _pass2);
+        return keccak256(_remit, unhashedPassword);
     }
 
-    function setPass(bytes32 _hashedPass, address carolAddress, uint256 duration)
+    function setPass(address remitAddress, bytes32 hashedPassword, uint256 duration)
     public
     payable
     onlyOwner
@@ -52,34 +52,34 @@ contract Remittance is Stoppable {
     {
         require(msg.value > 0);
         require(!isSet);
-        require(carolAddress != 0);
-        require(_hashedPass != 0);
+        require(remitAddress != 0);
+        require(hashedPassword != 0);
         require(block.number < block.number + duration);
-        hashedPass = _hashedPass;
-        carol = carolAddress;
+        hashedPass = hashedPassword;
+        remit = remitAddress;
         expirationBlock = duration + block.number;
         isSet = true;
         balance += msg.value;
 
-        LogSetRemittance(carolAddress, expirationBlock, msg.value);
+        LogSetRemittance(remit, expirationBlock, msg.value);
         return true;
     }
 
-    function withdrawFunds(bytes32 pass1, bytes32 pass2)
+    function withdrawFunds(bytes32 unhashedPassword)
     public
     onlyIfRunning
     returns(bool success)
     {
         require(balance > 0);
-        require(msg.sender == carol);
+        require(msg.sender == remit);
         require(isSet);
         require(block.number < expirationBlock);
-        require(hashedPass == keccak256(keccak256(pass1), keccak256(pass2)));
+        require(hashedPass == hashPasswords(msg.sender, unhashedPassword));
         uint256 amountToSend;
         amountToSend = balance;
         balance = 0;
         isSet = false;
-        carol.transfer(amountToSend);
+        remit.transfer(amountToSend);
 
         LogWithdraw(msg.sender, amountToSend);
         return true;
