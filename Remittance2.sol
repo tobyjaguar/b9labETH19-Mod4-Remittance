@@ -35,6 +35,14 @@ contract Remittance is Stoppable {
         return balance;
     }
 
+    function hashPasswords(bytes32 _pass1, bytes32 _pass2)
+    public
+    pure
+    returns (bytes32 hashedOutput)
+    {
+        return keccak256(_pass1, _pass2);
+    }
+
     function setPass(bytes32 _hashedPass, address carolAddress, uint256 duration)
     public
     payable
