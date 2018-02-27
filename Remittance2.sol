@@ -9,23 +9,26 @@ import "./Stoppable.sol";
 contract Remittance is Stoppable {
 
     uint256 public balance;
+    uint256 public remitFee;
+    uint256 public feeBalance;
 
-    struct Remitter {
+    struct Remittee {
         bytes32 hashedPassword;
         uint256 expirationBlock;
         uint256 remitAmount;
     }
 
-    mapping(address => Remitter) public remitters;
+    mapping(address => Remittee) public remittees;
 
-    event LogSetRemittance(address eRemitAddress, uint256 eExpirationBlock, uint256 eAmount);
-    event LogWithdraw(address eSender, uint256 eAmount);
-    event LogRefund(address eSender, uint256 eAmount);
+    event LogSetRemittance(address eRemittee, uint256 eExpirationBlock, uint256 eAmount, uint256 eFee);
+    event LogWithdraw(address eSender, address eRemittee, uint256 eAmount);
+    event LogFeeWithdraw(address eSender, uint256 eAmount);
+    event LogRefund(address eSender, address eRemittee, uint256 eAmount);
 
-    function Remittance()
+    function Remittance(uint256 _remitFee)
     public
     {
-
+        remitFee = _remitFee;
     }
 
     function getBalance()
@@ -36,15 +39,25 @@ contract Remittance is Stoppable {
         return balance;
     }
 
-    function hashPasswords(address _remit, bytes32 _unhashedPassword)
+    function remitFee(uint256 _remitFee)
+    public
+    onlyOwner
+    onlyIfRunning
+    returns (bool success)
+    {
+        remitFee = _remitFee;
+        return true;
+    }
+
+    function hashPasswords(address _remitter, bytes32 _unhashedPassword)
     public
     constant
     returns (bytes32 hashedOutput)
     {
-        return keccak256(_remit, _unhashedPassword);
+        return keccak256(_remitter, _unhashedPassword);
     }
 
-    function setPass(address _remitAddress, bytes32 _hashedPassword, uint256 _duration)
+    function setPass(address _remittee, bytes32 _hashedPassword, uint256 _duration)
     public
     payable
     onlyOwner
@@ -52,52 +65,69 @@ contract Remittance is Stoppable {
     returns (bool success)
     {
         require(msg.value > 0);
-        require(_remitAddress != 0);
+        require(_remittee != 0);
         require(_hashedPassword != 0);
         require(block.number < block.number + _duration);
-        remitters[_remitAddress].hashedPassword = _hashedPassword;
-        remitters[_remitAddress].expirationBlock = _duration + block.number;
-        remitters[_remitAddress].remitAmount += msg.value;
+        remittees[_remittee].hashedPassword = _hashedPassword;
+        remittees[_remittee].expirationBlock = _duration + block.number;
+        feeBalance += remitFee;
+        remittees[_remittee].remitAmount += (msg.value - remitFee);
         balance += msg.value;
 
-        LogSetRemittance(_remitAddress, remitters[_remitAddress].expirationBlock, msg.value);
+        LogSetRemittance(_remittee, remittees[_remittee].expirationBlock, remittees[_remittee].remitAmount, remitFee);
         return true;
     }
 
-    function withdrawFunds(bytes32 _unhashedPassword)
+    function withdrawFunds(address _remittee, bytes32 _unhashedPassword)
     public
     onlyIfRunning
     returns(bool success)
     {
         require(msg.sender != 0);
-        require(remitters[msg.sender].remitAmount > 0);
-        require(block.number < remitters[msg.sender].expirationBlock);
-        require(remitters[msg.sender].hashedPassword == hashPasswords(msg.sender, _unhashedPassword));
+        require(remittees[_remittee].remitAmount > 0);
+        require(block.number < remittees[_remittee].expirationBlock);
+        require(remittees[_remittee].hashedPassword == hashPasswords(msg.sender, _unhashedPassword));
         uint256 amountToSend;
-        amountToSend = remitters[msg.sender].remitAmount;
-        remitters[msg.sender].remitAmount = 0;
+        amountToSend = remittees[_remittee].remitAmount;
+        remittees[_remittee].remitAmount = 0;
         msg.sender.transfer(amountToSend);
         balance -= amountToSend;
 
-        LogWithdraw(msg.sender, amountToSend);
+        LogWithdraw(msg.sender, _remittee, amountToSend);
         return true;
     }
 
-    function refund(address _remitAddress)
+    function feeWithdraw()
+    public
+    onlyOwner
+    onlyIfRunning
+    returns (bool success)
+    {
+        uint256 amountToSend;
+        amountToSend = feeBalance;
+        feeBalance = 0;
+        balance -= amountToSend;
+        owner.transfer(amountToSend);
+
+        LogFeeWithdraw(msg.sender, amountToSend);
+        return true;
+    }
+
+    function refund(address _remittee)
     public
     onlyOwner
     onlyIfRunning
     returns(bool success)
     {
-        require(remitters[_remitAddress].remitAmount > 0);
-        require(remitters[_remitAddress].expirationBlock <= block.number);
+        require(remittees[_remittee].remitAmount > 0);
+        require(remittees[_remittee].expirationBlock <= block.number);
         uint256 amountToSend;
-        amountToSend = remitters[_remitAddress].remitAmount;
-        remitters[_remitAddress].remitAmount = 0;
+        amountToSend = remittees[_remittee].remitAmount;
+        remittees[_remittee].remitAmount = 0;
         balance -= amountToSend;
         owner.transfer(amountToSend);
 
-        LogRefund(msg.sender, amountToSend);
+        LogRefund(msg.sender, _remittee, amountToSend);
         return true;
     }
 
