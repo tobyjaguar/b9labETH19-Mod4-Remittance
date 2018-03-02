@@ -2,7 +2,7 @@
 Promise = require("bluebird");
 var Remittance = artifacts.require("./Remittance.sol");
 
-const expectedException = require("../utils/expectedException.js");
+web3.eth.expectedException = require("../utils/expectedException.js");
 //const sequentialPromise = require("../utils/sequentialPromise.js");
 //web3.eth.makeSureHasAtLeast = require("../utils/makeSureHasAtLeast.js");
 //web3.eth.makeSureAreUnlocked = require("../utils/makeSureAreUnlocked.js");
@@ -30,12 +30,33 @@ contract('Remittance', function(accounts) {
 
     });
   });
-/*
+
+  it("Should be owned by owner", function() {
+    return contractInstance.owner.call({from: owner})
+    .then(result => {
+      assert.equal(result, owner, "owner did not return correctly");
+    });
+    //end test
+  });
+
   it("Should return the remit fee", function() {
     return contractInstance.remitFee.call({from: owner})
     .then(result => {
       //console.log("Remit Fee: " + result);
       assert.equal(result.valueOf(), remitFee, "Contract did not return the correct remit fee");
+    });
+    //end test
+  });
+
+  it("Should be able to change the remitFee", function() {
+    var remitFee2 = 5000000;
+    return contractInstance.changeRemitFee(remitFee2, {from: owner})
+    .then(result => {
+      assert.equal(result.receipt.status, true, "changeRemitFee did not return true");
+      return contractInstance.remitFee.call({from: owner});
+    })
+    .then(result => {
+      assert.equal(result, remitFee2, "remitFee did not return to changed value");
     });
     //end test
   });
@@ -321,15 +342,35 @@ contract('Remittance', function(accounts) {
     });
     //end test
   });
-*/
+
+  it("Should not let non-owner stop the contract", function() {
+
+    return web3.eth.expectedException(
+      () => contractInstance.runSwitch(0, {from: remitter}),
+    3000000);
+    //end test
+  });
+
   //test fail cases
   it("Should not change remitFee if not owner", function() {
+    var remitFee2 = 500000;
 
-    return contractInstance.owner.call({from: owner})
+    return web3.eth.expectedException(
+      () => contractInstance.changeRemitFee(5, {from: remitter, gas: 3000000}),
+        3000000);
+    //end test
+  });
+
+  it("Should not change remitFee if not running", function() {
+    var remitFee2 = 500000;
+
+    return contractInstance.runSwitch(0, {from: owner})
     .then(result => {
-      assert.equal(result, owner, "contract owner did not return correctly");
+      assert.equal(result.receipt.status, true, "runSwitch did not return true");
+      return web3.eth.expectedException(
+        () => contractInstance.changeRemitFee(5, {from: owner}),
+      3000000);
     });
-
     //end test
   });
 
