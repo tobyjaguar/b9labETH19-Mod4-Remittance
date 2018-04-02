@@ -14,9 +14,16 @@ contract('Remittance', function(accounts) {
   var remitter = accounts[1];
   var remittee = accounts[2];
   var remittee2 = accounts[3];
+  var amount = 500000;
+  var blockDuration = 5;
+  var remitFee =  100000;
+  var pass = "abc";
+  var pass2 = "def";
+  var pass32bytes = "0x6162630000000000000000000000000000000000000000000000000000000000";
+  var hashOfABC = "0x9b8075e3114a237714bcee811cbb0337de6d1423cb2947266772aae5963ec8e5"
+  var pass1H = web3.sha3(web3.toHex("abc"), {encode: 'hex'});
 
   beforeEach(function() {
-    var remitFee =  100000;
     return Remittance.new(remitFee, {from: owner})
     .then(function(instance) {
       contractInstance = instance;
@@ -33,7 +40,6 @@ contract('Remittance', function(accounts) {
   });
 
   it("Should return the remit fee", function() {
-    var remitFee =  100000;
     return contractInstance.remitFee.call({from: owner})
     .then(result => {
       //console.log("Remit Fee: " + result);
@@ -74,7 +80,6 @@ contract('Remittance', function(accounts) {
   it("Should set passwords, address, and duration", function() {
     var pass = "abc";
     var blockDuration = 5;
-    var remitFee =  100000;
     var amount = 500000;
     var blockNumber;
     var eExpirationBlock;
